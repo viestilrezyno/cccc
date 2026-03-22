@@ -1,0 +1,83 @@
+name: Create VPS (Auto Restart)
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [create-vps]
+
+jobs:
+  start-vps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360   # 6 tiếng
+    env:
+      TMATE_SERVER: nyc1.tmate.io
+
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v3
+
+      - name: 🔐 Start tmate session
+        run: |
+          sudo apt update -y && sudo apt install -y tmate
+          tmate -S /tmp/tmate.sock new-session -d
+          tmate -S /tmp/tmate.sock wait tmate-ready
+          SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
+          echo "$SSH" | tee "ssh-link.txt"
+          echo "SSH connection string saved to ssh-link.txt"
+
+      - name: 🚀 Start Playit Tunnel
+        run: |
+          wget -q https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64 -O playit
+          chmod +x playit
+          nohup ./playit > playit.log 2>&1 &
+          echo "✅ Playit tunnel started in background"
+
+      - name: 📥 Setup & Run VPS scripts
+        run: |
+          # Tải proxy list
+          wget https://github.com/ErcinDedeoglu/proxies/raw/refs/heads/main/proxies/https.txt -O proxy.txt
+
+          # Cài gdown
+          pip install gdown
+
+          # Tải các file JS chính
+          gdown https://drive.google.com/uc?id=1l7XemuQ4MuxYYzmzLYnXTF9tXw_mutgV -O hieu.js
+          gdown https://drive.google.com/uc?id=1Kpe6qSbsNaS-z0f9BMCyJsi3ooVouPLh -O raw.js
+
+          # Tải thêm các file khác (giữ nguyên như cũ)
+          gdown 1d7DjHHAqvOA5QkYw196JJZ_Vj3xMXfZF
+          gdown https://drive.google.com/uc?id=1yUo671F3nwX1KGRYxzZl09F15eMtNaZV
+
+          # Cài các package npm cần thiết
+          npm install cluster colors colorama axios crypto discord.js gradient-string user-agents header-generator hpack socks puppeteer-real-browser
+
+          # Tải thêm file (giữ nguyên danh sách cũ)
+          gdown 1W-q3LSgM6oE14Fd_rrWVwRUmqxgChdMZ
+          gdown 1z0VINnYv93dXpwfsN524oIDugy1gaX8A
+          gdown 1_wXltanrFfLzl0hembWZ1f6PwFy4qbZW
+          gdown 1YKNPGX9B3u9p-NaV33BgVJ0W9lkrRgQx
+
+          # UDP bypass
+          gdown 'https://drive.google.com/uc?id=1MuaBraso20I73ixepu6SQWDq0GMnlU05' -O udpbypass.c
+          gcc udpbypass.c -o udpbypass
+
+          # OVH bypass
+          gdown 1Q2VYSvBdeclp6A1f8xePFrT6Yt7ZB2gX -O ovh.c
+          gcc ovh.c -o ovhbypass
+
+          # Tải file bot cuối cùng
+          gdown 1Vq9T9WkLJdMDQf9s2mL4w32cRsxr6lPk
+          gdown 1ICGS7OQEsc4nbMWEVNU7OM9manNl-OAU
+
+          # Chạy bot (giả sử file chính là bot.js)
+          nohup node bot.js > bot.log 2>&1 &
+          echo "✅ Bot đã chạy background"
+
+      - name: ⏳ Giữ VPS sống (6 tiếng)
+        run: |
+          for i in $(seq 1 360); do
+            echo "🟢 Còn lại $(expr 360 - $i) phút..."
+            sleep 60
+          done
+
+      
